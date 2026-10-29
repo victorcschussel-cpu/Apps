@@ -1,0 +1,35 @@
+{
+  "name": "glicemia-refeicoes",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:login": "tsx scripts/test-login.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/victorcschussel-cpu/Apps.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/victorcschussel-cpu/Apps/issues"
+  },
+  "homepage": "https://github.com/victorcschussel-cpu/Apps#readme",
+  "dependencies": {
+    "@babel/runtime": "^7.29.10",
+    "@diakem/libre-link-up-api-client": "^0.7.2",
+    "axios": "^1.21.0",
+    "better-sqlite3": "^13.0.3",
+    "dotenv": "^18.0.9",
+    "luxon": "^3.7.2"
+  },
+  "devDependencies": {
+    "@types/luxon": "^3.7.6",
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
