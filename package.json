@@ -2,16 +2,19 @@
   "name": "glicemia-refeicoes",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "test:login": "tsx scripts/test-login.ts"
+    "test": "vitest run",
+    "test:login": "tsx scripts/test-login.ts",
+    "dev:server": "tsx watch src/server/index.ts",
+    "dev:web": "vite",
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "start": "node dist/server/index.js",
+    "typecheck": "tsc -p . && tsc -p web"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/victorcschussel-cpu/Apps.git"
   },
-  "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
@@ -21,15 +24,32 @@
   "dependencies": {
     "@babel/runtime": "^7.29.10",
     "@diakem/libre-link-up-api-client": "^0.7.2",
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/multipart": "^10.1.6",
+    "@fastify/static": "^10.1.8",
     "axios": "^1.21.0",
     "better-sqlite3": "^13.0.3",
+    "csv-parse": "^7.0.3",
     "dotenv": "^18.0.9",
-    "luxon": "^3.7.2"
+    "fastify": "^5.12.7",
+    "luxon": "^3.7.2",
+    "pdfkit": "^0.20.2"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
     "@types/luxon": "^3.7.6",
     "@types/node": "^26.6.6",
+    "@types/pdfkit": "^0.17.7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
-  }
+    "typescript": "^7.0.2",
+    "uplot": "^1.6.32",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  },
+  "type": "module"
 }

@@ -5,7 +5,7 @@ import axios from 'axios';
 import { DateTime } from 'luxon';
 import { LibreLinkUpClient } from '@diakem/libre-link-up-api-client';
 
-const { LLU_EMAIL, LLU_PASSWORD, LLU_VERSION = '4.16.0', LLU_PATIENT_ID, TZ_DISPLAY = 'America/Sao_Paulo' } = process.env;
+const { LLU_EMAIL, LLU_PASSWORD, LLU_VERSION = '4.16.0', LLU_PATIENT_NAME, TZ_DISPLAY = 'America/Sao_Paulo' } = process.env;
 const N = Number(process.argv[2] ?? 10);
 
 if (!LLU_EMAIL || !LLU_PASSWORD) {
@@ -35,7 +35,7 @@ async function main() {
     username: LLU_EMAIL!,
     password: LLU_PASSWORD!,
     clientVersion: LLU_VERSION,
-    ...(LLU_PATIENT_ID ? { connectionIdentifier: LLU_PATIENT_ID } : {}),
+    ...(LLU_PATIENT_NAME ? { connectionIdentifier: LLU_PATIENT_NAME } : {}),
   });
   const login = await client.login();
   const u = login.data.user as { firstName?: string; country: string };

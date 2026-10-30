@@ -1,51 +1,58 @@
-# Glicemia por refeição — arquitetura
+# Glicemia por refeição: arquitetura
 
-## Componentes (um único processo Node 22 + TypeScript)
+## Componentes (um único processo Node 22 + TypeScript, no Fly.io)
 
 ```
 ┌──────────── servidor (Fastify) ────────────┐
-│ sync job (node-cron, 90 min) ── LLU API    │
+│ job de sync (a cada 90 min) ── LLU API     │
 │ importador CSV LibreView                   │
-│ SQLite (better-sqlite3, data/glicemia.db)  │
-│ API REST: /readings /meals /table /targets │
-│           /export.csv /export.pdf /status  │
-│ serve o front estático                     │
+│ SQLite (better-sqlite3) no volume /data    │
+│ API REST /api/*  +  front estático         │
 └──────────────────┬─────────────────────────┘
-                   │ HTTPS + senha única
+                   │ HTTPS + senha única (cookie 180 dias)
          PWA React + Vite (iPhone/iPad, "Adicionar à Tela de Início")
 ```
 
-- **Servidor sempre ligado** (Raspberry/NAS em casa, VPS ou Fly.io com volume): o job e o SQLite moram nele.
-- **Front**: React + Vite como PWA; gráfico com uPlot (leve, bom em telas touch); fusos com Luxon.
-- **Export**: CSV no servidor; PDF com pdfkit no servidor (mesmo layout no iPhone e no iPad).
-- **Acesso**: senha única + cookie de sessão; são dados de saúde e o app fica exposto na internet.
+| Arquivo | Papel |
+|---|---|
+| `src/server/table.ts` | regras da tabela (função pura, testada) |
+| `src/server/db.ts` | schema (migrações), dedup, consultas |
+| `src/server/sync.ts` | cliente LibreLinkUp + agendador |
+| `src/server/csvImport.ts` | parser do CSV do LibreView |
+| `src/server/export.ts` | CSV e PDF |
+| `src/server/app.ts` | rotas |
+| `src/shared/types.ts` | tipos usados pelo servidor e pelo front |
+| `web/src/` | telas: Registrar, Tabela, Gráfico, Status, Ajustes |
+
+## Regras da tabela (dia = 00:00–24:00 em America/Sao_Paulo)
+| Campo | Regra |
+|---|---|
+| Jejum (1 por dia) | leitura mais próxima de T−15 min do **café**, ±7 min. Sem café no dia, usa a 1ª refeição. |
+| Pré | leitura mais próxima de T−15 min, ±7 min |
+| 1h / 2h | leitura mais próxima de T+60 / T+120, ±7 min |
+| Pico | máximo em [T, T+180], **cortado na refeição seguinte** se ela vier antes |
+
+Sem interpolação. Estados de célula: `ok`, `missing` ("sem": nenhuma leitura na tolerância) e
+`pending` (a janela ainda não terminou). O pico pode vir marcado como ✂ (cortado) ou ≈ (parcial:
+buraco > 20 min na janela). Escaneadas também contam como candidatas a "mais próxima".
+Valor acima de `max` vai em vermelho ▲; abaixo de `min`, em azul ▼.
+
+## Banco
+Todos os instantes ficam em epoch UTC (segundos); a conversão de fuso acontece só na exibição.
+- `glucose_readings`: `UNIQUE(kind, ts_minute)`. Além disso, uma leitura `cgm` de outra fonte a ±2 min
+  é tratada como a mesma (o relógio do sensor e o do celular diferem no CSV).
+- `meals`, `targets` (max/min por campo), `sync_runs` (cada execução, com erro),
+  `csv_imports` (cada arquivo, com a contagem de linhas ignoradas por tipo).
 
 ## Sincronização (LibreLinkUp)
-- Biblioteca `@diakem/libre-link-up-api-client` 0.7.2 (segue o redirect de região sozinha).
-  Precisa de `clientVersion` ≥ 4.16.0 e `@babel/runtime@7` instalado à parte (bug de empacotamento).
-- A API devolve só as **~12 h mais recentes** (`graphData`). Job a cada 90 min dá folga para
-  ~7 falhas seguidas; acima disso o buraco só é preenchido pelo CSV.
-- Cada execução grava uma linha em `sync_runs`; `INSERT OR IGNORE` faz a deduplicação.
-- Token JWT em cache em `settings` para não logar a cada execução (evita bloqueio por excesso de login).
+- `@diakem/libre-link-up-api-client` 0.7.2 segue o redirect de região sozinha. Requer
+  `clientVersion` ≥ 4.16.0 e `@babel/runtime@7` (dependência que a lib não declara).
+- Um cliente por processo: o login só é refeito quando uma chamada falha, para não arriscar
+  bloqueio por excesso de logins.
+- A API só devolve **~12 h**. A cada 90 min há folga para ~7 falhas seguidas; além disso, o buraco
+  só é preenchido pelo CSV. A tela de Status avisa quando a leitura mais recente tem mais de 3 h.
 
-## Importador CSV LibreView
-- Linha 1 = metadados, linha 2 = cabeçalho. Colunas por nome (PT e EN).
-- `Tipo de registro` 0 → `cgm` (Histórico de glicose), 1 → `scan` (Glicose escaneada).
-  Os demais (insulina, alimentos, notas, cetonas…) são contados por tipo e gravados em `csv_imports.ignored_types`.
-- O horário do CSV é local do aparelho, sem fuso → interpretado como America/Sao_Paulo (Luxon cuida do
-  horário de verão de antes de 2019).
-
-## Dedup
-`UNIQUE(kind, ts_minute)`: a API tem segundos e o CSV só minutos; dois pontos `cgm` nunca caem no mesmo minuto.
-
-## Cálculo da tabela (sob demanda, nada armazenado)
-Dia = 00:00–24:00 em America/Sao_Paulo. Para cada refeição em T:
-| campo | regra |
-|---|---|
-| Jejum (1 por dia) | leitura antes da 1ª refeição do dia — ver questão 1 |
-| Pré | leitura mais próxima de T−15 min, ±7 min |
-| 1h / 2h | leitura mais próxima de T+60 / T+120, ±7 min; nenhuma → célula vazia sinalizada "sem leitura" |
-| Pico | máx em [T, T+180] + horário; marcado "parcial" se a janela tiver buraco > 20 min |
-Sem interpolação. As leituras escaneadas entram como candidatas a "mais próxima".
-
-Valor acima de `max_mgdl` (ou abaixo de `min_mgdl`) → destaque de cor.
+## CSV do LibreView
+Cabeçalho em PT ou EN; `,` ou `;`; mg/dL ou mmol/L; datas dd-MM ou MM-dd (detectado no arquivo).
+`Tipo de registro` 0 = histórica, 1 = escaneada. Os demais tipos são contados e registrados.
+O horário do CSV é local do aparelho e é interpretado como America/Sao_Paulo.
