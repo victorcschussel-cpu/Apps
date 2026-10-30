@@ -1,11 +1,12 @@
 import type { Cell, CellStatus, DayTable, Field, Meal, MealRow, PeakCell, Reading, Targets } from '../shared/types.js';
-import { localDate } from './time.js';
+import { addDays, dayBounds, localDate } from './time.js';
 
 export * from '../shared/types.js';
 
 const MIN = 60;
 export const TOLERANCE = 7 * MIN;
-export const PRE_OFFSET = -15 * MIN;
+/** Jejum: leitura mais próxima deste horário local, com a mesma tolerância. */
+export const FASTING_HOUR = 7;
 export const PEAK_WINDOW = 180 * MIN;
 /** Buraco entre leituras acima disso marca o pico como "parcial". */
 export const MAX_GAP = 20 * MIN;
@@ -83,7 +84,7 @@ export function buildTables(
 ): DayTable[] {
   const sortedReadings = [...readings].sort((a, b) => a.ts - b.ts);
   const sortedMeals = [...meals].sort((a, b) => a.ts - b.ts || a.id - b.id);
-  const days = new Map<string, DayTable>();
+  const rowsByDay = new Map<string, MealRow[]>();
 
   sortedMeals.forEach((meal, i) => {
     const date = localDate(meal.ts);
@@ -96,22 +97,23 @@ export function buildTables(
 
     const row: MealRow = {
       meal,
-      pre: nearest(sortedReadings, meal.ts + PRE_OFFSET, 'pre', targets, now),
       pos1h: nearest(sortedReadings, meal.ts + 60 * MIN, 'pos1h', targets, now),
       pos2h: nearest(sortedReadings, meal.ts + 120 * MIN, 'pos2h', targets, now),
       pico: peak(sortedReadings, meal.ts, end, targets, now, cut),
     };
-    let day = days.get(date);
-    if (!day) days.set(date, (day = { date, jejum: null, rows: [] }));
-    day.rows.push(row);
+    if (!rowsByDay.has(date)) rowsByDay.set(date, []);
+    rowsByDay.get(date)!.push(row);
   });
 
-  for (const day of days.values()) {
-    // Jejum = T-15 do café; sem café no dia, usa a primeira refeição.
-    const ref = day.rows.find((r) => r.meal.type === 'cafe') ?? day.rows[0];
-    const cell = nearest(sortedReadings, ref.meal.ts + PRE_OFFSET, 'jejum', targets, now);
-    day.jejum = { ...cell, mealId: ref.meal.id };
+  // Um dia entra na tabela se tiver refeição ou leitura de jejum; hoje sempre aparece.
+  const days: DayTable[] = [];
+  const todayDate = localDate(now);
+  for (let date = from; date <= to; date = addDays(date, 1)) {
+    const fastingAt = dayBounds(date)[0] + FASTING_HOUR * 3600;
+    const jejum = nearest(sortedReadings, fastingAt, 'jejum', targets, now);
+    const rows = rowsByDay.get(date) ?? [];
+    if (rows.length || jejum.status === 'ok' || date === todayDate) days.push({ date, jejum, rows });
   }
 
-  return [...days.values()].sort((a, b) => b.date.localeCompare(a.date));
+  return days.reverse();
 }

@@ -65,6 +65,11 @@ const MIGRATIONS = [
     errors         TEXT NOT NULL
   );
   `,
+  // Campo "pré" removido; jejum passa a ser a leitura das 07:00, limite 95.
+  `
+  DELETE FROM targets WHERE field = 'pre';
+  UPDATE targets SET max_mgdl = 95 WHERE field = 'jejum';
+  `,
 ];
 
 export function openDb(file: string): DB {

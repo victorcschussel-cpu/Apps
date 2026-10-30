@@ -27,8 +27,7 @@
 ## Regras da tabela (dia = 00:00–24:00 em America/Sao_Paulo)
 | Campo | Regra |
 |---|---|
-| Jejum (1 por dia) | leitura mais próxima de T−15 min do **café**, ±7 min. Sem café no dia, usa a 1ª refeição. |
-| Pré | leitura mais próxima de T−15 min, ±7 min |
+| Jejum (1 por dia) | leitura mais próxima das **07:00**, ±7 min, independente das refeições. Limite padrão 95. |
 | 1h / 2h | leitura mais próxima de T+60 / T+120, ±7 min |
 | Pico | máximo em [T, T+180], **cortado na refeição seguinte** se ela vier antes |
 
@@ -36,6 +35,7 @@ Sem interpolação. Estados de célula: `ok`, `missing` ("sem": nenhuma leitura 
 `pending` (a janela ainda não terminou). O pico pode vir marcado como ✂ (cortado) ou ≈ (parcial:
 buraco > 20 min na janela). Escaneadas também contam como candidatas a "mais próxima".
 Valor acima de `max` vai em vermelho ▲; abaixo de `min`, em azul ▼.
+Um dia aparece na tabela se tiver refeição ou leitura de jejum; o dia de hoje sempre aparece.
 
 ## Banco
 Todos os instantes ficam em epoch UTC (segundos); a conversão de fuso acontece só na exibição.

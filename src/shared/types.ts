@@ -2,7 +2,7 @@
 
 export const MEAL_TYPES = ['cafe', 'almoco', 'lanche', 'jantar', 'outro'] as const;
 export type MealType = (typeof MEAL_TYPES)[number];
-export const FIELDS = ['jejum', 'pre', 'pos1h', 'pos2h', 'pico'] as const;
+export const FIELDS = ['jejum', 'pos1h', 'pos2h', 'pico'] as const;
 export type Field = (typeof FIELDS)[number];
 
 export type Reading = { ts: number; value: number; kind: 'cgm' | 'scan' };
@@ -20,5 +20,6 @@ export type Cell = {
   flag: 'high' | 'low' | null;
 };
 export type PeakCell = Cell & { windowEnd: number; cut: boolean; partial: boolean };
-export type MealRow = { meal: Meal; pre: Cell; pos1h: Cell; pos2h: Cell; pico: PeakCell };
-export type DayTable = { date: string; jejum: (Cell & { mealId: number }) | null; rows: MealRow[] };
+export type MealRow = { meal: Meal; pos1h: Cell; pos2h: Cell; pico: PeakCell };
+/** Jejum é do dia (leitura das 07:00), não de uma refeição. */
+export type DayTable = { date: string; jejum: Cell; rows: MealRow[] };

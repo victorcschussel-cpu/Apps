@@ -5,7 +5,7 @@ import { buildTables, type Meal, type Reading, type Targets } from '../src/serve
 const TZ = 'America/Sao_Paulo';
 const at = (hhmm: string, date = '2026-10-20') => DateTime.fromISO(`${date}T${hhmm}`, { zone: TZ }).toSeconds();
 const targets: Targets = {
-  jejum: { max: 99, min: 70 }, pre: { max: 99, min: 70 },
+  jejum: { max: 95, min: 70 },
   pos1h: { max: 140, min: null }, pos2h: { max: 120, min: null }, pico: { max: 140, min: null },
 };
 const LATER = at('23:59', '2026-10-25');
@@ -19,21 +19,20 @@ function series(fromHHMM: string, toHHMM: string, value: (ts: number) => number,
 const meal = (id: number, type: Meal['type'], hhmm: string, date?: string): Meal => ({ id, type, ts: at(hhmm, date), note: null });
 
 describe('buildTables', () => {
-  it('pega a leitura mais próxima de T-15, T+60, T+120 e o pico', () => {
+  it('pega a leitura mais próxima de T+60, T+120 e o pico', () => {
     const readings = [
-      { ts: at('07:44'), value: 88, kind: 'cgm' as const },
-      { ts: at('07:47'), value: 90, kind: 'cgm' as const }, // 2 min de T-15; 07:44 está a 1 min e vence
+      { ts: at('07:01'), value: 88, kind: 'cgm' as const },
+      { ts: at('07:03'), value: 90, kind: 'cgm' as const }, // 3 min das 07:00; 07:01 está a 1 min e vence
       { ts: at('09:03'), value: 150, kind: 'cgm' as const },
       { ts: at('09:30'), value: 170, kind: 'cgm' as const },
       { ts: at('10:05'), value: 118, kind: 'cgm' as const },
     ];
     const [day] = buildTables(readings, [meal(1, 'cafe', '08:00')], targets, '2026-10-20', '2026-10-20', LATER);
     const row = day.rows[0];
-    expect(row.pre.value).toBe(88);
     expect(row.pos1h).toMatchObject({ value: 150, status: 'ok', flag: 'high' });
     expect(row.pos2h).toMatchObject({ value: 118, flag: null });
     expect(row.pico).toMatchObject({ value: 170, ts: at('09:30'), flag: 'high' });
-    expect(day.jejum).toMatchObject({ value: 88, mealId: 1 });
+    expect(day.jejum).toMatchObject({ value: 88, status: 'ok', flag: null });
   });
 
   it('deixa a célula vazia quando não há leitura em ±7 min (sem interpolar)', () => {
@@ -58,14 +57,27 @@ describe('buildTables', () => {
     expect(day.rows[0].pico).toMatchObject({ status: 'pending', value: 100 });
   });
 
-  it('jejum usa o café mesmo que haja refeição antes; sem café usa a primeira refeição', () => {
-    const readings = series('05:00', '23:00', (t) => (t === at('06:45') ? 80 : t === at('07:45') ? 95 : 110));
-    const meals = [meal(1, 'outro', '07:00'), meal(2, 'cafe', '08:00')];
-    const [day] = buildTables(readings, meals, targets, '2026-10-20', '2026-10-20', LATER);
-    expect(day.jejum).toMatchObject({ value: 95, mealId: 2 });
+  it('jejum é a leitura mais próxima das 07:00, independente das refeições', () => {
+    const readings = series('05:00', '23:00', (t) => (t === at('06:45') ? 80 : t === at('07:00') ? 96 : 110));
+    const [day] = buildTables(readings, [meal(1, 'cafe', '06:30')], targets, '2026-10-20', '2026-10-20', LATER);
+    expect(day.jejum).toMatchObject({ value: 96, ts: at('07:00'), flag: 'high' }); // limite 95
+  });
 
-    const [day2] = buildTables(readings, [meal(3, 'almoco', '12:00'), meal(4, 'lanche', '07:00')], targets, '2026-10-20', '2026-10-20', LATER);
-    expect(day2.jejum).toMatchObject({ value: 80, mealId: 4 });
+  it('jejum vazio quando não há leitura entre 06:53 e 07:07', () => {
+    const readings = [{ ts: at('06:52'), value: 90, kind: 'cgm' as const }, { ts: at('07:08'), value: 91, kind: 'cgm' as const }];
+    const [day] = buildTables(readings, [meal(1, 'cafe', '08:00')], targets, '2026-10-20', '2026-10-20', LATER);
+    expect(day.jejum).toMatchObject({ value: null, status: 'missing' });
+  });
+
+  it('dia sem refeição aparece se houver jejum; sem nada, não aparece', () => {
+    const readings = [{ ts: at('07:02', '2026-10-21'), value: 90, kind: 'cgm' as const }];
+    const days = buildTables(readings, [], targets, '2026-10-20', '2026-10-21', LATER);
+    expect(days.map((d) => [d.date, d.rows.length, d.jejum.value])).toEqual([['2026-10-21', 0, 90]]);
+  });
+
+  it('jejum de hoje fica pendente antes das 07:07', () => {
+    const [day] = buildTables([], [], targets, '2026-10-20', '2026-10-20', at('06:30'));
+    expect(day.jejum.status).toBe('pending');
   });
 
   it('corta a janela do pico na próxima refeição', () => {
@@ -99,8 +111,8 @@ describe('buildTables', () => {
   });
 
   it('sinaliza abaixo do mínimo', () => {
-    const readings = [{ ts: at('07:45'), value: 65, kind: 'cgm' as const }];
+    const readings = [{ ts: at('07:00'), value: 65, kind: 'cgm' as const }];
     const [day] = buildTables(readings, [meal(1, 'cafe', '08:00')], targets, '2026-10-20', '2026-10-20', LATER);
-    expect(day.jejum?.flag).toBe('low');
+    expect(day.jejum.flag).toBe('low');
   });
 });

@@ -58,6 +58,6 @@ export const api = {
   },
 };
 
-export const FIELD_LABELS: Record<Field, string> = { jejum: 'Jejum', pre: 'Pré', pos1h: '1h pós', pos2h: '2h pós', pico: 'Pico' };
+export const FIELD_LABELS: Record<Field, string> = { jejum: 'Jejum 7h', pos1h: '1h pós', pos2h: '2h pós', pico: 'Pico' };
 export const MEAL_LABELS: Record<MealType, string> = { cafe: 'Café', almoco: 'Almoço', lanche: 'Lanche', jantar: 'Jantar', outro: 'Outro' };
 export const MEAL_TYPES = Object.keys(MEAL_LABELS) as MealType[];

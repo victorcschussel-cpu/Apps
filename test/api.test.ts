@@ -41,11 +41,13 @@ describe('API', () => {
     expect(day.rows.map((r: { meal: { type: string } }) => r.meal.type)).toEqual(['cafe', 'almoco']);
     expect(day.jejum.status).toBe('ok');
     expect(day.rows[0].pos1h.status).toBe('ok');
+    expect(table.targets.jejum.max).toBe(95);
+    expect(table.targets.pre).toBeUndefined();
   });
 
   it('exporta CSV e PDF', async () => {
     const csv = await req('GET', '/api/export.csv?from=2026-10-20&to=2026-10-20');
-    expect(csv.body.split('\r\n')[1]).toMatch(/^2026-10-20;Café;08:10;\d+;\d+;/);
+    expect(csv.body.split('\r\n')[1]).toMatch(/^2026-10-20;\d+;Café;08:10;\d+;\d+;/);
     const pdf = await req('GET', '/api/export.pdf?from=2026-10-20&to=2026-10-20');
     expect(pdf.headers['content-type']).toBe('application/pdf');
     expect(pdf.rawPayload.subarray(0, 5).toString()).toBe('%PDF-');

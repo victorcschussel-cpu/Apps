@@ -36,18 +36,16 @@ function DayCard({ day, onEdit }: { day: DayTable; onEdit: (m: Meal) => void }) 
     <section className="day">
       <div className="day-head">
         <h2>{dayLabel(day.date)}</h2>
-        {day.jejum && (
-          <span className="jejum-chip muted">
-            Jejum <Value c={day.jejum} title="Jejum" />
-            {day.jejum.ts != null && <span className="small">às {hhmm(day.jejum.ts)}</span>}
-          </span>
-        )}
+        <span className="jejum-chip muted">
+          Jejum 7h <Value c={day.jejum} title="Jejum 7h" />
+          {day.jejum.ts != null && <span className="small"> às {hhmm(day.jejum.ts)}</span>}
+        </span>
       </div>
+      {day.rows.length === 0 ? <p className="muted small" style={{ margin: 0 }}>Nenhuma refeição registrada.</p> : (
       <table className="gtable">
         <thead>
           <tr>
             <th>Refeição</th>
-            <th>{FIELD_LABELS.pre}</th>
             <th>{FIELD_LABELS.pos1h}</th>
             <th>{FIELD_LABELS.pos2h}</th>
             <th>{FIELD_LABELS.pico}</th>
@@ -58,17 +56,17 @@ function DayCard({ day, onEdit }: { day: DayTable; onEdit: (m: Meal) => void }) 
             const rows = [
               <tr key={r.meal.id} className={r.meal.note ? 'has-note' : undefined} onClick={() => onEdit(r.meal)} style={{ cursor: 'pointer' }}>
                 <td><span className="meal-name">{MEAL_LABELS[r.meal.type]}</span><span className="sub">{hhmm(r.meal.ts)}</span></td>
-                <td><Value c={r.pre} title="Pré" /></td>
                 <td><Value c={r.pos1h} title="1h pós" /></td>
                 <td><Value c={r.pos2h} title="2h pós" /></td>
                 <td><PeakValue p={r.pico} /></td>
               </tr>,
             ];
-            if (r.meal.note) rows.push(<tr key={`${r.meal.id}-n`} className="note"><td colSpan={5}>{r.meal.note}</td></tr>);
+            if (r.meal.note) rows.push(<tr key={`${r.meal.id}-n`} className="note"><td colSpan={4}>{r.meal.note}</td></tr>);
             return rows;
           })}
         </tbody>
       </table>
+      )}
     </section>
   );
 }
@@ -107,7 +105,7 @@ export function TablePage({ onError }: PageProps) {
         <a className="btn small" href={`/api/export.pdf?${qs}`} download>Exportar PDF</a>
       </div>
       <div className="legend">
-        <span>mg/dL · {['jejum', 'pre', 'pos1h', 'pos2h', 'pico'].map((f) => lim(f as keyof Targets)).filter(Boolean).join(' · ')}</span>
+        <span>mg/dL · {['jejum', 'pos1h', 'pos2h', 'pico'].map((f) => lim(f as keyof Targets)).filter(Boolean).join(' · ')}</span>
         <span><span className="v high">▲</span> acima</span>
         <span><span className="v low">▼</span> abaixo</span>
         <span><span className="v missing">sem</span> sem leitura a ±7 min</span>
